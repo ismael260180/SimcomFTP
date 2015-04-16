@@ -1,4 +1,23 @@
-﻿#define PC
+//*******************************************************************************************************************************************
+//
+//!     \file       SimcomFTP.cs
+//!     \brief      Maquina de estados para utilizar FTP modem SIM900D
+//!     \version    V1.0.0.1     
+//!     \date       16-4-2015
+//!     \autor      Ing. ISmael Garcia Ramirez 
+//
+//
+//!     Copyright (c)  2015, Sistema BEA
+//!     All rights reserved.
+//      
+//      
+//
+//      habilite #define G120 cuando utilice la libreria para la plataforma GHI G120
+//      habilite #define PC cuando utlice la libreria para una aplicacion de PC
+//
+//*********************************************************************************************************************************************
+#define G120
+//#define PC
 using System;
 
 #if G120
@@ -6,7 +25,6 @@ using Microsoft.SPOT;
 #elif PC
 using System.Diagnostics;
 #endif
-
 using System.IO;
 
 public enum TipoFTP
@@ -18,31 +36,26 @@ enum Estados
 {
     INICIO,
     INACTIVO,
+    FTP_GPRS_QUERY,
+    FTP_GPRS_ABRIR,
+    FTP_GPRS_CONFG,
+    PAUSA_RESPUESTA,
     FTP_CID,
     FTP_SERVIDOR,
     FTP_USUARIO,
     FTP_CLAVE,
     FTP_ARCHIVO,
     FTP_DIRECTORIO,
-    ABRIR_ESC_FTP,
     ESCRIBIR_FTP,
-    FTP_LEE_ARCHIVO,
-    FTP_LEE_DIRECTORIO,
-    ABRIR_LEE_FTP,
     LEER_FTP,
-    PAUSA_RESPUESTA,
-    FTP_FINALIZADO,
-    FTP_INI_ESCRIBE,
     FTP_IDLE,
     FTP_IDLE_LECTURA,
     FTP_IDLE_ESCRITURA,
-    FTP_GPRS_QUERY,
-    FTP_GPRS_ABRIR,
-    FTP_GPRS_CONFG,
     FTP_ANA_LECT,
     FTP_ANA_ESC,
     FTP_ESCRIBE_DATOS,
-    FTP_DATOS_BUFFER,
+    FTP_FINALIZADO,
+    FINALIZADO,
     ERROR,
 }
 
@@ -80,20 +93,21 @@ class SimcomFTP
 
     }
 
-    internal enum procesoEstado
+    internal enum procesoEstado: byte
     {
-        FTP_CID,
-        FTP_SERVIDOR,
-        FTP_USUARIO,
-        FTP_CLAVE,
-        FTP_ARCHIVO,
-        FTP_DIRECTORIO,
-        FTP_ESC_LEE,
-        FTP_GPRS_QUERY,
-        FTP_GPRS_ABRIR,
-        FTP_GPRS_CONFG,
-        FTP_ESCRIBE_DATOS,
-        FTP_FINALIZADO,
+        INACTIVO,                //0
+        FTP_GPRS_QUERY,         //1     
+        FTP_GPRS_ABRIR,         //2     
+        FTP_GPRS_CONFG,         //3
+        FTP_CID,                //4
+        FTP_SERVIDOR,           //5
+        FTP_USUARIO,            //6
+        FTP_CLAVE,              //7
+        FTP_ARCHIVO,            //8
+        FTP_DIRECTORIO,         //9
+        FTP_ESC_LEE,            //10
+        FTP_ESCRIBE_DATOS,      //11
+        FTP_FINALIZADO,         //12
     }
 
     internal enum tipoAlmacenamiento
@@ -124,12 +138,14 @@ class SimcomFTP
 
 
     static internal procesoEstado eProcesoEstado;
+    static internal bool boFlagReinicioProceso = false;
     //static int i32ContEspera;
     static int i32IndiceBufferRec = 0;
     static int i32LargoBufferRec = 0;
     // static int i32ContEscLec = 0;
     internal static int i32FTPCodError = -1;
     static int i32FTPCodigo = -1;
+    static private int s32CantTotal;
 
     static FileStream fsArchivo = null;
 
@@ -150,7 +166,10 @@ class SimcomFTP
 
                 Timer1 = new stTimer();
                 Timer2 = new stTimer();
+                boFlagReinicioProceso = false;
+                eProcesoEstado = procesoEstado.INACTIVO;
                 eEstadoFTP = Estados.INACTIVO;
+
                 break;
 
             case Estados.INACTIVO:
@@ -330,7 +349,7 @@ class SimcomFTP
                         eEstadoFTP = Estados.FTP_IDLE;
                     }
 #if G120
-                Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
+                    Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
 #elif PC
                     Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
 #endif
@@ -443,6 +462,7 @@ class SimcomFTP
                 eProcesoEstado = procesoEstado.FTP_DIRECTORIO;
                 //i32ContEspera = 20;
                 Timer1.vfnSetear_Timer(200);
+                
                 eEstadoFTP = Estados.PAUSA_RESPUESTA;
 #if G120
                 Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
@@ -476,7 +496,7 @@ class SimcomFTP
 
                             i32FTPCodError = -3;
                             eEstadoFTP = Estados.ERROR;
-                            
+
                         }
 
                     }
@@ -489,7 +509,7 @@ class SimcomFTP
                 i32IndiceBufferTx = 0;
                 Timer2.vfnSetear_Timer(60000);
                 Timer1.vfnSetear_Timer(200);
-                
+                s32CantTotal = 0;
 
 #if G120
                 Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
@@ -509,6 +529,7 @@ class SimcomFTP
                     }
                     else
                     {
+                        
                         eEstadoFTP = Estados.FTP_IDLE_LECTURA;
                     }
                     Timer2.vfnSetear_Timer(60000);
@@ -598,7 +619,7 @@ class SimcomFTP
                                                 break;
                                             }
                                         }
-                                        
+
                                     }
                                     if (i32FTPCodigo >= 0)
                                     {
@@ -606,14 +627,14 @@ class SimcomFTP
                                         {
                                             eEstadoFTP = Estados.LEER_FTP;
                                         }
-                                        else if (i32FTPCodigo == 2)
+                                        else if (i32FTPCodigo == 0)
                                         {
                                             i32FTPCodError = 0;
                                             eEstadoFTP = Estados.FTP_FINALIZADO;
                                         }
                                         else
                                         {
-                                            
+
                                             i32FTPCodError = i32FTPCodigo;
                                             eErrorFTP = (mensajeError)i32FTPCodError;
                                             eEstadoFTP = Estados.ERROR;
@@ -682,11 +703,12 @@ class SimcomFTP
                                                 }
                                             }
                                             i32lIndiceTemp = i32lIndiceTemp + i32lCantDatos;
+                                            s32CantTotal = s32CantTotal + i32lCantDatos;
                                             eEstadoFTP = Estados.LEER_FTP;
                                         }
-                                        i32lIndiceTemp = i32lIndiceTemp + i32lTemp;
+                                       
 #if G120
-                                        Debug.Print("SIMFTP>" + eEstadoFTP.ToString() + " (2," + i32lCantDatos.ToString() + ")");
+                                        Debug.Print("SIMFTP>" + eEstadoFTP.ToString() + " (2," + i32lCantDatos.ToString() + ")" + " Cant: " + s32CantTotal.ToString());
 #elif PC
                                         Debug.Print("SIMFTP>" + eEstadoFTP.ToString() + " (2," + i32lCantDatos.ToString() + ")");
 #endif
@@ -721,7 +743,7 @@ class SimcomFTP
 #endif
                 break;
 
-            
+
 
             case Estados.LEER_FTP:
 
@@ -736,29 +758,7 @@ class SimcomFTP
                 break;
 
 
-            case Estados.FTP_FINALIZADO:
-
-                stSimcomFTP.i32CantDatos = i32IndiceBuffer;
-                //Console.Write( "Error:" + i32FTPCodError.ToString());
-                //Debug.Print("Error: " + i32FTPCodError.ToString());
-                eProcesoEstado = procesoEstado.FTP_FINALIZADO;
-                stSimcomFTP.boRFlagProcesoOcupado = false;
-                if (eTipoAlmace == tipoAlmacenamiento.SD)
-                {
-                    if (fsArchivo != null)
-                    {
-                        fsArchivo.Close();
-                        fsArchivo.Dispose();
-                    }
-                    fsArchivo = null;
-                }
-                eTipoProceso = TipoProceso.NINGUNO;
-                eEstadoFTP = Estados.INACTIVO;
-#if G120
-                Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
-#endif
-
-                break;
+            
 
             case Estados.FTP_IDLE_ESCRITURA:
 
@@ -816,7 +816,7 @@ class SimcomFTP
                                     i32lIndiceTemp = i32lTemp;
                                     i32lTemp = Array.IndexOf(baBufferRec, (byte)'\r', i32lIndiceTemp + 1);
 
-                                    if(i32lTemp-i32lIndiceTemp > 2)
+                                    if (i32lTemp - i32lIndiceTemp > 2)
                                         i32lTemp = Array.IndexOf(baBufferRec, (byte)',', i32lIndiceTemp + 1);
                                     i32lTemp = i32lTemp - i32lIndiceTemp - 1;
                                     if (i32lTemp > 0 && i32lTemp < 5)
@@ -862,7 +862,7 @@ class SimcomFTP
                                     }
 
 #if G120
-                Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
+                                    Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
 #elif PC
                                     Debug.Print("SIMFTP>" + eEstadoFTP.ToString() + "(1," + i32FTPCodigo + ")");
 #endif
@@ -933,6 +933,39 @@ class SimcomFTP
 #endif
                 break;
 
+            case Estados.FTP_FINALIZADO:
+
+                stSimcomFTP.i32CantDatos = i32IndiceBuffer;
+                //Console.Write( "Error:" + i32FTPCodError.ToString());
+                //Debug.Print("Error: " + i32FTPCodError.ToString());
+                eProcesoEstado = procesoEstado.FTP_FINALIZADO;
+                stSimcomFTP.boRFlagProcesoOcupado = false;
+                if (eTipoAlmace == tipoAlmacenamiento.SD)
+                {
+                    if (fsArchivo != null)
+                    {
+                        fsArchivo.Close();
+                        fsArchivo.Dispose();
+                    }
+                    fsArchivo = null;
+                }
+                eTipoProceso = TipoProceso.NINGUNO;
+                //eEstadoFTP = Estados.INACTIVO;
+#if G120
+                Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
+#endif
+
+                break;
+
+            case Estados.FINALIZADO:
+
+                if (boFlagReinicioProceso == true)
+                {
+                    eProcesoEstado = procesoEstado.INACTIVO;
+                }
+
+                break;
+
             case Estados.ERROR:
 
                 eEstadoFTP = Estados.FTP_FINALIZADO;
@@ -956,7 +989,6 @@ public struct stSimcomFTP
     {
         if (boRFlagProcesoOcupado == false)
         {
-
             SimcomFTP.sArchivo = sArchivoFTP;
             SimcomFTP.sDirectorio = sDirectorioFTP;
             SimcomFTP.sArchivoSD = sArchivoSD;
@@ -981,7 +1013,6 @@ public struct stSimcomFTP
             {
                 SimcomFTP.eTipoProceso = TipoProceso.LECTURA;
                 boRFlagProcesoOcupado = true;
-
             }
             else
             {
@@ -1019,6 +1050,7 @@ public struct stSimcomFTP
 
     static public int s32Obtener_CodigoError()
     {
+        SimcomFTP.boFlagReinicioProceso = true;
         return SimcomFTP.i32FTPCodError;
     }
 
