@@ -21,21 +21,20 @@ procesos
 
 para revisar si el proceso del FTP fue exitoso o no podemos hacer esta validacion:
 
-if (stSimcomFTP.sObtener_Proceso() == "FTP_FINALIZADO")
-{
-    boFlagSalida = true;
-    s32Temp = stSimcomFTP.s32Obtener_CodigoError();
-    if (s32Temp < 0)
-    {
-        Console.Write("Error de Secuencia: " + s32Temp.ToString() + "\r");
-
-    }
-    else if (s32Temp > 0)
-    {
-        Console.Write("Error FTP: " + stSimcomFTP.sObtener_MensajeError()+ "\r");
-    }
-    else
-    {
-        Console.Write("FTP Exitoso " + stSimcomFTP.sObtener_MensajeError() + " Error\r");
-    }
-}
+        if (stSimcomFTP.sObtener_Proceso() == "12")
+        {
+            boFlagSalida = true;
+            s32Temp = stSimcomFTP.s32Obtener_CodigoError();
+            if (s32Temp < 0)
+            {
+                Debug.Print("Error de Secuencia: " + s32Temp.ToString() + "\r");
+            }
+            else if (s32Temp > 0)
+            {
+                Debug.Print("Error FTP: " + stSimcomFTP.sObtener_MensajeError() + "\r");
+            }
+            else
+            {
+                Debug.Print("FTP Exitoso " + stSimcomFTP.sObtener_MensajeError() + " Error\r");
+            }
+        }
