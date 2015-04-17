@@ -2,7 +2,7 @@
 //
 //!     \file       SimcomFTP.cs
 //!     \brief      Maquina de estados para utilizar FTP modem SIM900D
-//!     \version    V1.0.0.2     
+//!     \version    V1.0.0.3     
 //!     \date       16-4-2015
 //!     \autor      Ing. ISmael Garcia Ramirez 
 //
@@ -166,7 +166,7 @@ class SimcomFTP
 
                 Timer1 = new stTimer();
                 Timer2 = new stTimer();
-                boFlagReinicioProceso = false;
+                
                 eProcesoEstado = procesoEstado.INACTIVO;
                 eEstadoFTP = Estados.INACTIVO;
 
@@ -176,7 +176,7 @@ class SimcomFTP
 
                 if (stSimcomFTP.boRFlagProcesoOcupado == true)
                 {
-
+                    
                     eProcesoEstado = procesoEstado.FTP_GPRS_QUERY;
                     balBufferTemp = FuncionesDatos.baConvertir_bytes("AT+SAPBR=2,1\r\n");
                     //i32ContEspera = 30;
@@ -953,7 +953,7 @@ class SimcomFTP
                     fsArchivo = null;
                 }
                 eTipoProceso = TipoProceso.NINGUNO;
-                //eEstadoFTP = Estados.INACTIVO;
+                eEstadoFTP = Estados.FINALIZADO;
 #if G120
                 Debug.Print("SIMFTP>" + eEstadoFTP.ToString());
 #endif
@@ -964,7 +964,9 @@ class SimcomFTP
 
                 if (boFlagReinicioProceso == true)
                 {
+                    boFlagReinicioProceso = false;
                     eProcesoEstado = procesoEstado.INACTIVO;
+                    eEstadoFTP = Estados.INACTIVO;
                 }
 
                 break;
